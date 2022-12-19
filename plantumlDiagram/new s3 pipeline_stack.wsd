@@ -1,0 +1,30 @@
+@startuml New approach to migrate data from prod db to target db - Technical View
+
+!define AWSPuml https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v11.1/dist
+!include AWSPuml/AWSCommon.puml
+
+!include AWSPuml/ApplicationIntegration/APIGateway.puml
+!include AWSPuml/Compute/Lambda.puml
+!include AWSPuml/Database/DynamoDB.puml
+!include AWSPuml/Storage/SimpleStorageService.puml
+!include AWSPuml/ApplicationIntegration/SimpleNotificationService.puml
+
+
+left to right direction
+
+APIGateway(publish_reports_api, " Migration API", "Pass list of Report id to api")
+Lambda(upload_results_to_target_db_function, "Upload Results to target db Function", "")
+Lambda(processing_lambda, "Upload repid as json file to s3", "Store repid in s3")
+DynamoDB(main_table, "Main Account DEJ Table", "main table")
+DynamoDB(target_table, "Target Account DEJ Table", "target table")
+SimpleStorageService(processing_bucket, " processing Bucket", "Save repid as json file in s3")
+SimpleNotificationService(pipeline_complete_topic, "Send Pipeline Complete Status SNS","Send pipeline run logs to dev")
+
+JupyterNotebook --> publish_reports_api
+publish_reports_api --> processing_lambda
+processing_lambda --> processing_bucket
+processing_bucket --> upload_results_to_target_db_function
+upload_results_to_target_db_function --> target_table: put results item if not exists in target db
+upload_results_to_target_db_function <-- main_table: get reports index item and results
+upload_results_to_target_db_function --> pipeline_complete_topic
+@enduml
